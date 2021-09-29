@@ -3918,7 +3918,8 @@ func DownloadFile(data *[]byte) {
 
 	text := information[index:]
 
-	file, error := os.Create(client_name + "_" + file_name)
+	real_file_name := client_name + "_" + file_name
+	file, error := os.Create(real_file_name)
 
 	if error != nil {
 		fmt.Println("Found Error Creating File", file_name, ":", error)
@@ -3926,7 +3927,7 @@ func DownloadFile(data *[]byte) {
 		return
 	}
 
-	file_list = append(file_list, client_name+"_"+file_name)
+	file_list = append(file_list, real_file_name)
 	defer file.Close()
 	file.WriteString(text)
 

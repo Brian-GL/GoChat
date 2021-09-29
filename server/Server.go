@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -12,15 +13,29 @@ import (
 
 const end_line_char = 10
 
+var file_list []string
 var clients []net.Conn
 
 func main() {
 	fmt.Print("\033[H\033[2J")
+	file_list = make([]string, 0)
 	clients = make([]net.Conn, 0)
+	file, error := os.Create("ServerMessages.txt")
+
+	if error != nil {
+		fmt.Println("Found Error Creating File ServerMessages:", error)
+		file.Close()
+		return
+	}
+
+	file.WriteString("Messages At " + time.Now().Format("2006-01-02 15:04:05 Monday"))
+	file.Close()
+
 	go ServerService()
 	var input string
 	fmt.Scanln(&input)
 	clients = nil
+	DeleteFiles()
 	fmt.Println("Closing Server At: " + time.Now().Format("2006-01-02 15:04:05 Monday"))
 }
 
@@ -83,14 +98,18 @@ func HandleClient(client_connection net.Conn) {
 
 			if IsCommandFile(&data) {
 				file_message := FileMessage(&data)
+				WriteMessage(&file_message)
 				fmt.Print(file_message)
+				GetFile(&data)
 				estatus := SendMessage(&data, client_connection)
 				if !estatus {
 					data = make([]byte, 0)
 					break
 				}
 			} else {
-				fmt.Print(string(data))
+				data_string := string(data)
+				fmt.Print(data_string)
+				WriteMessage(&data_string)
 				estatus := SendMessage(&data, client_connection)
 				if !estatus {
 					data = make([]byte, 0)
@@ -162,5 +181,71 @@ func FileMessage(data *[]byte) string {
 	}
 
 	return gettting
+
+}
+
+func WriteMessage(message *string) {
+	file, error := os.OpenFile("ServerMessages.txt", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+
+	if error != nil {
+		fmt.Println("Found Error Creating File ServerMessages:", error)
+		file.Close()
+		return
+	}
+
+	file.WriteString(*message)
+	file.Close()
+}
+
+func GetFile(data *[]byte) {
+	var information string = string(*data)
+	var gettting string = ""
+	var index int = 0
+	for _, character := range information {
+		index++
+		if strings.HasSuffix(gettting, ".txt") {
+			break
+		}
+
+		gettting = gettting + string(character)
+
+	}
+
+	file_name := FileName(&gettting)
+
+	text := information[index:]
+
+	real_file_name := "Server_" + file_name
+	file, error := os.Create(real_file_name)
+
+	if error != nil {
+		fmt.Println("Found Error Creating File", file_name, ":", error)
+		file.Close()
+		return
+	}
+
+	file_list = append(file_list, real_file_name)
+	defer file.Close()
+	file.WriteString(text)
+
+}
+
+func FileName(value *string) string {
+	list := strings.Split(*value, " ")
+
+	if len(list) > 2 {
+		return list[len(list)-1]
+	}
+
+	return ""
+}
+
+func DeleteFiles() {
+	for _, v := range file_list {
+		os.Remove(v)
+	}
+
+	os.Remove("ServerMessages.txt")
+	file_list = nil
 
 }
